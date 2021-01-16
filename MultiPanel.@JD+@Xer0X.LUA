@@ -12,7 +12,9 @@ local nfo = Info {
 	name = "MultiPanel",
 	description = "Store and switch between multiple file panels",
 	version = "0.5", -- http://semver.org/lang/ru/
+	version_mod = "0.3",
 	author = "jd",
+	author_mod = "Xer0X",
 	url = "http://forum.farmanager.com/viewtopic.php?f=15&t=8759",
 	id = "75950345-29C3-49DB-804D-8AA96345C1B2",
 	minfarversion = { 3, 0, 0, 4151, 0 }, -- local profile
@@ -300,6 +302,7 @@ function stack:Switch(idx_targ, p, pnl_curr)
 			table.insert(self, 1, pnl_targ)
 		end
 		if	pnl_targ.Directory.Name ~= pnl_curr.Directory.Name
+		or	pnl_targ.HK ~= pnl_curr.HK
 		then	pnl_prev = pnl_curr
 			if not	pnl_save
 			then	pnl_extr = pnl_curr
@@ -419,7 +422,7 @@ local function fnc_menu_item_prep(pnl, new_hot_key)
 		Type = "Panel"
 		path = Dir.Name
 		dir_name = string.match(path, "([^\\^/]+)$")
-		dir_path = string.sub(path, 1, -string.len(dir_name) - 1)
+		dir_path = dir_name and string.sub(path, 1, -string.len(dir_name) - 1) or path
 		Name = dir_name.." "..dir_path
 	end
 	Type = Type..(" "):rep(TypeW - Type:len())
