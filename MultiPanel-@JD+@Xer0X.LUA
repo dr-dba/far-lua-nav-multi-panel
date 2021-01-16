@@ -31,13 +31,12 @@ local O = nfo.options
 local F = far.Flags
 local DefPanel = {
 	Directory = {
-		Name = win.GetEnv "SystemDrive".."\\",
+		Name = win.GetEnv("SystemDrive").."\\",
 		File = "",
 		Param = "",
-		PluginId = win.Uuid "00000000-0000-0000-0000-000000000000"
+		PluginId = win.Uuid("00000000-0000-0000-0000-000000000000")
 	},
-	Info = {
-		-- http://api.farmanager.com/ru/defs/sortmetods.html
+	Info = { -- http://api.farmanager.com/ru/defs/sortmetods.html
 		SortMode = F.SM_EXT,
 		Flags = F.PFLAGS_NONE, -- F.PFLAGS_REVERSESORTORDER,
 		ViewMode = 4
@@ -102,8 +101,8 @@ end
 --------------------------------------------------------
 -- MultiPanel panel api logic
 
-local ACTIVE	= F.PANEL_ACTIVE
-local PASSIVE	= F.PANEL_PASSIVE
+local PNL_ACT	= F.PANEL_ACTIVE
+local PNL_PAS	= F.PANEL_PASSIVE
 
 local function getSelection(p, pInfo)
 	if	pInfo.SelectedItemsNumber == 1
@@ -241,8 +240,8 @@ end
 
 function stack:Clone(idx)
 	local	pnl
-	if	idx == ACTIVE
-	then	pnl = self:_get(ACTIVE)
+	if	idx == PNL_ACT
+	then	pnl = self:_get(PNL_ACT)
 		idx = 1
 	else	pnl = self[idx]
 	end
@@ -329,10 +328,8 @@ end
 setmetatable(stack, { __index = function(_, k) error("out of bounds index: "..k) end }) --]]
 
 local mtPanelsStack = { __index = stack }
-
 -- load/save
 local Panels
-
 local _KEY =	nfo.author:upper()
 local _NAME =	nfo.name
 
@@ -405,7 +402,7 @@ Macro { description = "[MultiPanel] Goto [0-9A-Z]",
 
 local TypeW = 10
 
-local function fnc_menu_item_prep(pnl, mi_selected, new_hot_key)
+local function fnc_menu_item_prep(pnl, new_hot_key)
 	local Dir = pnl.Directory or { };
 	Dir.File = Dir.File or "";
 	-- protect from bad data:
@@ -434,7 +431,6 @@ local function fnc_menu_item_prep(pnl, mi_selected, new_hot_key)
 	local menu_item = {
 		pnl = pnl,
 		text = text,
-		selected = mi_selected,
 		checked = not pnl.isPlugin and "≡", -- =≡■
 		grayed = pnl.notSupported or notfound
 	--	disable
@@ -446,7 +442,7 @@ end
 local function fnc_menu_prep()
 	local menu_has_curr, menu_idx_curr, menu_add_extr, menu_has_extr
 	local menu_items = { }
-	local pnl_act = Panels:_get(ACTIVE)
+	local pnl_act = Panels:_get(PNL_ACT)
 	pnl_act.HK = "0"
 	for ii = 1, #Panels
 	do
@@ -462,7 +458,7 @@ local function fnc_menu_prep()
 			and	pnl_extr.Directory.Name == ii_pnl.Directory.Name
 			then	menu_has_extr = true
 			end
-			table.insert(menu_items, fnc_menu_item_prep(ii_pnl, nil, true))
+			table.insert(menu_items, fnc_menu_item_prep(ii_pnl, true))
 		end
 	end
 	if not	menu_has_curr
@@ -487,7 +483,7 @@ local Items --]]
 
 local function expandBreakKeys(BreakKeysArr)
 	local newBreakKeysArr = { }
-	for _, item in ipairs(BreakKeysArr)
+	for ii, item in ipairs(BreakKeysArr)
 	do	for key in item.BreakKey:gmatch("%S+")
 		do
 			local newitem = {}
@@ -503,14 +499,14 @@ end
 local menu_brkys = expandBreakKeys {
 	{       BreakKey = "RETURN",
 		action = function(list_targ_idx, menu_item_curr)
-			Panels:Switch(list_targ_idx, ACTIVE, menu_item_curr.pnl)
+			Panels:Switch(list_targ_idx, PNL_ACT, menu_item_curr.pnl)
 			return "break"
 		end
 	},
 	{       BreakKey = "C+RETURN",
 		action = function(pos)
 			if	pos > 1
-			then	Panels:Switch(pos - 1, PASSIVE, nil)
+			then	Panels:Switch(pos - 1, PNL_PAS, nil)
 			else    Keys("CtrlU Tab")
 			end
 			return "break"
@@ -602,16 +598,17 @@ local function showMultiPanel(option)
 			no "extra" (last-visited-not-in-list) panel,
 			but chosen first item, which supposed to be the current active:]]
 			list_has_curr and menu_has_extr and menu_idx_targ == 1 and pnl_extr or
-			not list_has_curr and not menu_has_extr and menu_idx_targ == 1 and ACTIVE or
+			not list_has_curr and not menu_has_extr and menu_idx_targ == 1 and PNL_ACT or
 			--[[ menu items do NOT includes persistent (stored) panel,
 			and choosen any not first item,
 			which supposed to be from the list:]]
 			(not list_has_curr or menu_has_extr) and #Panels > 0 and menu_idx_targ - 1 or
-			--[[no saved panels in list: ]]
-			ACTIVE
-		menu_break = menu_item.action and
+			--[[no saved panels in the list: ]]
+			PNL_ACT
+		menu_break = 
+			menu_item.action and
 			menu_item.action(list_idx_targ, menu_items[menu_idx_curr])
-	until	menu_break or menu_item.breaking
+	until	menu_break or menu_item.breaking 
 	closeOnRelease = false
 	return menu_idx_targ
 end
@@ -656,7 +653,7 @@ Macro { description = "[MultiPanel] goto Panels",
 }
 
 local function Push(p)
-	local	ok, pnl, err = Panels:Push(p, nil, p == ACTIVE)
+	local	ok, pnl, err = Panels:Push(p, nil, p == PNL_ACT)
 	if	ok
 	then	MessagePopup("Storing panel...")
 	elseif	err
@@ -669,20 +666,20 @@ end
 Macro { description = "[MultiPanel] store active panel",
 	area = allPanels,
 	key = "LCtrlF3:Hold",
-	action = function() Push(ACTIVE) end
+	action = function() Push(PNL_ACT) end
 }
 
 Macro { description = "[MultiPanel] store passive panel",
 	area = allPanels,
 	key = "LCtrlShiftF3:Hold",
-	action = function() Push(PASSIVE) end
+	action = function() Push(PNL_PAS) end
 }
 
 Macro { description = "[MultiPanel] restore prev. panel",
 	area = allPanels,
 	key = "LCtrlF4:Hold",
 	action = function()
-		Panels:Restore(ACTIVE)
+		Panels:Restore(PNL_ACT)
 		MessagePopup("Closing panel...")
 	end
 }
@@ -691,7 +688,7 @@ Macro { description = "[MultiPanel] restore prev. panel as passive",
 	area = allPanels,
 	key = "LCtrlShiftF4:Hold",
 	action = function()
-		Panels:Restore(PASSIVE)
+		Panels:Restore(PNL_PAS)
 		MessagePopup("Closing panel...")
 	end
 }
@@ -699,11 +696,11 @@ Macro { description = "[MultiPanel] restore prev. panel as passive",
 Macro { description = "[MultiPanel] close active panel",
 	area = allPanels,
 	key = "LCtrlF8:Hold",
-	action = function() Panels:Close(ACTIVE) end
+	action = function() Panels:Close(PNL_ACT) end
 }
 
 Macro { description = "[MultiPanel] close passive panel",
 	area = allPanels,
 	key = "LCtrlShiftF8:Hold",
-	action = function() Panels:Close(PASSIVE) end
+	action = function() Panels:Close(PNL_PAS) end
 }
