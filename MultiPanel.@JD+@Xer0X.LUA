@@ -526,7 +526,7 @@ local menu_brkys = expandBreakKeys {
 		breaking = true
 	},
 	{	BreakKey = "C+F3 F3",
-		action = function(pos) return nil, Panels:Clone(pos) end
+		action = function(pos) return false, Panels:Clone(pos) end
 	},
 	{	BreakKey = "C+F4 F4",
 		action = function(pos) table.remove(Panels, pos) end
