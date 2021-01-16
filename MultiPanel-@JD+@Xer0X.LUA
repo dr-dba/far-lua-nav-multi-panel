@@ -43,13 +43,15 @@ local DefPanel = {
 		ViewMode = 4
 	}
 }
-
-local g = win.Uuid
-local notRealHostFile = {[g "42E4AEB1-A230-44F4-B33C-F195BB654931"] = "NetBox"}
-local openFromMenu = {
-	[g "1E26A927-5135-48C6-88B2-845FB8945484"] = "Process list",
-	[g "B77C964B-E31E-4D4C-8FE5-D6B0C6853E7C"] = "Temporary panel"
+local MP_MENU_ID = "4EAC7327-6C97-444B-AC6A-2FCCCBAA7210"
+local notRealHostFile = {
+	[win.Uuid("42E4AEB1-A230-44F4-B33C-F195BB654931")] = "NetBox"
 }
+local openFromMenu = {
+	[win.Uuid("1E26A927-5135-48C6-88B2-845FB8945484")] = "Process list",
+	[win.Uuid("B77C964B-E31E-4D4C-8FE5-D6B0C6853E7C")] = "Temporary panel"
+}
+local pnl_extr, pnl_prev
 -------------------------------------------------------------
 --- some general definitions
 
@@ -58,10 +60,12 @@ local function AKey() return mf.akey(1, 1) end
 local function LockState(xLock, State)
 	-- set State: 0|1|2=toggle
 	-- get State: nil|-1
-	local Lock = {Num = 0, Caps = 1, Scroll = 2}
-	local modeIsOn, keyIsPressed = 1, 0xff80
-	local r = mf.flock(assert(Lock[xLock]), State or -1)
-	return band(r, modeIsOn) == modeIsOn, band(r, keyIsPressed) == keyIsPressed
+	local Lock = { Num = 0, Caps = 1, Scroll = 2 }
+	local modeIsOn = 1
+	local keyIsPressed = 0xff80
+	local key_rec = mf.flock(assert(Lock[xLock]), State or -1)
+	return	modeIsOn ==	band(key_rec, modeIsOn),
+		keyIsPressed == band(key_rec, keyIsPressed)
 end
 
 --[[
@@ -180,7 +184,7 @@ function stack:_set(p, idx, pnl)
 		or type(idx) == "table" and idx.Directory and idx
 --	if not pnl then return end -- debug
 	if	pnl.openFromMenu
-	then	Plugin.Menu(g(pnl.Info.OwnerGuid))
+	then	Plugin.Menu(win.Uuid(pnl.Info.OwnerGuid))
 	elseif
 	not	pnl.Directory or
 	not	panel.SetPanelDirectory(p, nil, pnl.Directory)
@@ -207,17 +211,19 @@ end
 function stack:Push(p, pnl, new)
 	pnl = pnl or self:_get(p)
 	if pnl.notSupported then return false, pnl, "This panel kind is not supported" end
-	local idx_exists = -1
-	local tbl_used_hk = {}
+	local idx_exists
+	local tbl_used_hk = { }
 	for ii_key, ii_val in pairs(self)
 	do	if	type(ii_key) == "number"
 		then	if	ii_val.Directory.Name == pnl.Directory.Name
+			and not idx_exists
 			then	idx_exists = ii_key
 			else	tbl_used_hk[ii_val.HK] = true
 			end
 		end
 	end
-	if	idx_exists > 0
+	if	idx_exists
+	and	idx_exists > 0
 	then	pnl.HK = self[idx_exists].HK
 		pnl.HK = (tbl_used_hk[pnl.HK] or pnl.HK == "0") and self:_makeHK() or pnl.HK
 		self[idx_exists] = pnl
@@ -225,6 +231,10 @@ function stack:Push(p, pnl, new)
 		then	pnl.HK = self:_makeHK()
 		end
 		table.insert(self, 1, pnl)
+	end
+	if	pnl_extr
+	and	pnl_extr.Directory.Name == pnl.Directory.Name
+	then	pnl_extr = nil
 	end
 	return idx_exists == -1, pnl
 end
@@ -251,14 +261,15 @@ end
 -- push p/pnl and switch to i
 function stack:Switch(idx_targ, p, pnl_curr)
 	local idx_curr, pnl_save, pnl_push, set_targ_ok, pnl_targ
-	pnl_targ = type(idx_targ) == "table" and idx_targ
-	idx_targ = type(idx_targ) == "number" and idx_targ
+	pnl_targ = type(idx_targ) == "table"	and idx_targ
+	idx_targ = type(idx_targ) == "number"	and idx_targ
 	for	ii_key, ii_val in pairs(self)
 	do	if	type(ii_key) == "number"
 		and	type(ii_val) == "table"
 		and	ii_key > 0
 		then	if not	pnl_save
 			and	pnl_curr.Directory.Name == ii_val.Directory.Name
+			and	pnl_curr.HK == ii_val.HK
 			then	idx_curr = ii_key
 				pnl_save = ii_val
 			end
@@ -278,12 +289,22 @@ function stack:Switch(idx_targ, p, pnl_curr)
 	then    pnl_save = self:_get(p, pnl_curr.HK)
 		table.remove(self, idx_curr)
 		table.insert(self, 1, pnl_save)
+		if	idx_targ
+		and	idx_targ < idx_curr
+		then	idx_targ = idx_targ + 1
+		end
 	end
 	if	pnl_targ
 	then	set_targ_ok, pnl_targ = self:_set(p, idx_targ, pnl_targ)
 		if	idx_targ
 		then	table.remove(self, idx_targ)
 			table.insert(self, 1, pnl_targ)
+		end
+		if	pnl_targ.Directory.Name ~= pnl_curr.Directory.Name
+		then	pnl_prev = pnl_curr
+			if not	pnl_save
+			then	pnl_extr = pnl_curr
+			end
 		end
 	end
 end
@@ -332,9 +353,7 @@ Event { description = "[MultiPanel] Save settings (on exit)",
 	action = saveSettings
 }
 
-local MPid = "D3656A7D-A75F-40F1-AB9B-59D962CE2224"
-
-local function isMultiPanelMenu() return Menu.Id == MPid end
+local function isMultiPanelMenu() return Menu.Id == MP_MENU_ID end
 
 local closeOnRelease
 
@@ -424,39 +443,43 @@ local function fnc_menu_item_prep(pnl, mi_selected, new_hot_key)
 	return menu_item
 end
 
-local pnl_extra
-
 local function fnc_menu_prep()
-	local menu_has_curr, menu_idx_curr, menu_has_extr
+	local menu_has_curr, menu_idx_curr, menu_add_extr, menu_has_extr
 	local menu_items = { }
 	local pnl_act = Panels:_get(ACTIVE)
 	pnl_act.HK = "0"
-	for i = 1, #Panels
+	for ii = 1, #Panels
 	do
-		local	pnl = Panels[i]
-		if	pnl
-		then	if	pnl.Directory.Name == pnl_act.Directory.Name
+		local	ii_pnl = Panels[ii]
+		if	ii_pnl
+		then	if	ii_pnl.Directory.Name == pnl_act.Directory.Name
+			and not menu_idx_curr
 			then	menu_idx_curr = #menu_items + 1
 				menu_has_curr = true
 			end
-			table.insert(menu_items, fnc_menu_item_prep(pnl, nil, true))
+			if	pnl_extr
+			and	pnl_extr.Directory.Name ~= pnl_act.Directory.Name
+			and	pnl_extr.Directory.Name == ii_pnl.Directory.Name
+			then	menu_has_extr = true
+			end
+			table.insert(menu_items, fnc_menu_item_prep(ii_pnl, nil, true))
 		end
 	end
 	if not	menu_has_curr
 	then	table.insert(menu_items, 1, fnc_menu_item_prep(pnl_act))
 		menu_idx_curr = 1
 		menu_has_curr = false
-		pnl_extra = pnl_act
-	elseif	pnl_extra
-	then	table.insert(menu_items, 1, fnc_menu_item_prep(pnl_extra))
-		menu_has_extr = true
+	elseif	pnl_extr
+	and not menu_has_extr
+	then	table.insert(menu_items, 1, fnc_menu_item_prep(pnl_extr))
+		menu_add_extr = true
 		if	menu_idx_curr
 		and	menu_idx_curr > 0
 		then	menu_idx_curr = menu_idx_curr + 1
 		end
 	end
-	return menu_items, menu_has_curr, menu_idx_curr, menu_has_extr
-end
+	return menu_items, menu_has_curr, menu_idx_curr, menu_add_extr
+end -- fnc_menu_prep
 
 --[[ from the original code,
 but we will try to live without this "global" variable:
@@ -477,7 +500,7 @@ local function expandBreakKeys(BreakKeysArr)
 end
 
 -- http://msdn.microsoft.com/library/dd375731
-local BreakKeys = expandBreakKeys {
+local menu_brkys = expandBreakKeys {
 	{       BreakKey = "RETURN",
 		action = function(list_targ_idx, menu_item_curr)
 			Panels:Switch(list_targ_idx, ACTIVE, menu_item_curr.pnl)
@@ -532,8 +555,8 @@ local BreakKeys = expandBreakKeys {
 	}
 }
 
-local Props = { Title = "MultiPanel", Id = win.Uuid(MPid), Flags = F.FMENU_WRAPMODE }
-local Bottom = "F3:Clone, F4:Close, Release:Switch, Ctrl-Enter:..on passive"
+local menu_props = { Title = "MultiPanel", Id = win.Uuid(MP_MENU_ID), Flags = F.FMENU_WRAPMODE }
+local menu_low = "F3:Clone, F4:Close, Release:Switch, Ctrl-Enter:..on passive"
 
 --[[! todo: check it
 local function _align(pos) return pos > #Items and 1 or pos < 1 and #Items or pos end --]]
@@ -550,14 +573,25 @@ local function showMultiPanel(option)
 	end
 	repeat
 		menu_items, list_has_curr, menu_idx_curr, menu_has_extr = fnc_menu_prep()
-		menu_idx_targ = math.min(menu_has_extr and 1 or 2, #menu_items)
+		if	pnl_prev
+		then	menu_idx_curr = menu_idx_curr + 1 - 1
+		end
+		local adj_pos =
+			menu_has_extr and (
+				not pnl_prev and 1 or (
+					pnl_prev.Directory.Name == pnl_extr.Directory.Name and 1 or
+					pnl_prev.Directory.Name ~= pnl_extr.Directory.Name and 3
+						)
+					)
+				or 2
+		menu_idx_targ = math.min(adj_pos, #menu_items)
 		menu_item = menu_items[menu_idx_targ]
-		Props.Bottom = Bottom
-		Props.SelectIndex = menu_idx_targ
-		menu_item, menu_idx_targ = far.Menu(Props, menu_items, BreakKeys)
+		menu_props.Bottom = menu_low
+		menu_props.SelectIndex = menu_idx_targ
+		menu_item, menu_idx_targ = far.Menu(menu_props, menu_items, menu_brkys)
 		if not	menu_item.BreakKey
 		then	-- Enter:
-			menu_item = BreakKeys[1]
+			menu_item = menu_brkys[1]
 		end
 		list_idx_targ =
 			--[[ menu items includes persistent (stored) panel,
@@ -567,7 +601,7 @@ local function showMultiPanel(option)
 			--[[ menu items do NOT include persistent (stored) panel,
 			no "extra" (last-visited-not-in-list) panel,
 			but chosen first item, which supposed to be the current active:]]
-			list_has_curr and menu_has_extr and menu_idx_targ == 1 and pnl_extra or
+			list_has_curr and menu_has_extr and menu_idx_targ == 1 and pnl_extr or
 			not list_has_curr and not menu_has_extr and menu_idx_targ == 1 and ACTIVE or
 			--[[ menu items do NOT includes persistent (stored) panel,
 			and choosen any not first item,
