@@ -255,7 +255,12 @@ function stack:Clone(idx)
 	if	idx == PNL_ACT
 	then	pnl = self:_get(PNL_ACT)
 		idx = 1
-	else	pnl = self[idx]
+	elseif	type(idx) == "number"
+	and	idx > 0
+	then	pnl = self[idx]
+	elseif	type(idx) == "table"
+	and	idx.Directory
+	then	pnl = idx
 	end
 	local copy = { }
 	for k, v in pairs(pnl) do copy[k] = v end
@@ -455,7 +460,7 @@ local function fnc_menu_item_prep(pnl, new_hot_key)
 		path = Dir.Name
 		dir_name = string.match(path, "([^\\^/]+)$")
 		dir_path = dir_name and string.sub(path, 1, -string.len(dir_name) - 1) or path
-		Name = dir_name and dir_name.." "..dir_path or dir_path
+		Name = dir_name and dir_name.." &| "..dir_path or dir_path
 	end
 	Type = Type..(" "):rep(TypeW - Type:len())
 	local notfound = path and not win.GetFileAttr(path)
@@ -478,7 +483,7 @@ local function fnc_menu_item_prep(pnl, new_hot_key)
 end
 
 local function fnc_menu_prep()
-	local menu_has_curr, menu_idx_curr, menu_add_extr, menu_has_extr
+	local menu_has_curr, menu_idx_curr, menu_has_extr, menu_add_extr
 	local menu_items = { }
 	local pnl_act = Panels:_get(PNL_ACT)
 	pnl_act.HK = "0"
@@ -560,7 +565,17 @@ local menu_brkys = expandBreakKeys {
 		action = function(pos) return false, Panels:Clone(pos) end
 	},
 	{	BreakKey = "C+F4 F4",
-		action = function(pos) table.remove(Panels, pos) end
+		action = function(pos)
+			if	type(pos) == "number"
+			and	pos > 0
+			then	--! should be regular remove of existing (saved) Panle
+				table.remove(Panels, pos)
+			elseif	type(pos) == "table"
+			and	pos.Directory
+			then	--[[! should be got here by deleting (current or "extra") unsaved Panel,
+				so do nothing]]
+			end
+		end
 	},
 	{	BreakKey = "CS+F9 S+F9",
 		action = saveSettings
@@ -598,7 +613,7 @@ local function _align(pos) return pos > #Items and 1 or pos < 1 and #Items or po
 local function showMultiPanel(option)
 	local	menu_break, menu_item, menu_items,
 		menu_idx_curr, menu_idx_targ,
-		list_idx_curr, menu_has_extr,
+		list_idx_curr, menu_add_extr,
 		list_idx_targ, list_has_curr,
 		list_idx_goto
 	--[[! todo: check it
@@ -607,17 +622,19 @@ local function showMultiPanel(option)
 	then closeOnRelease = true
 	end
 	repeat
-		menu_items, list_has_curr, menu_idx_curr, menu_has_extr = fnc_menu_prep()
-		local adj_pos =
-			list_idx_goto and (menu_has_extr or not list_has_curr) and list_idx_dest + 1 or
-			list_idx_goto and list_idx_goto or
-			menu_has_extr and (
-				not pnl_prev and 1 or (
+		menu_items, list_has_curr, menu_idx_curr, menu_add_extr = fnc_menu_prep()
+		local adj_pos = false
+			or list_idx_goto and (menu_add_extr or not list_has_curr)
+				and list_idx_goto + 1
+			or list_idx_goto
+				and list_idx_goto
+			or menu_add_extr
+				and (not pnl_prev and 1 or (
 					pnl_prev.Directory.Name == pnl_extr.Directory.Name and 1 or
 					pnl_prev.Directory.Name ~= pnl_extr.Directory.Name and 3
 						)
 					)
-				or 2
+			or 2
 		menu_idx_targ = math.min(adj_pos, #menu_items)
 		menu_item = menu_items[menu_idx_targ]
 		menu_props.Bottom = menu_low
@@ -632,16 +649,16 @@ local function showMultiPanel(option)
 			--[[ menu items includes persistent (stored) panel,
 			either there is "extra" (last-visited-not-in-list) panel,
 			so the index is the same:]]
-			list_has_curr and not menu_has_extr and menu_idx_targ or
+			list_has_curr and not menu_add_extr and menu_idx_targ or
 			--[[ menu items do NOT include persistent (stored) panel,
 			no "extra" (last-visited-not-in-list) panel,
 			but chosen first item, which supposed to be the current active:]]
-			list_has_curr and menu_has_extr and menu_idx_targ == 1 and pnl_extr or
-			not list_has_curr and not menu_has_extr and menu_idx_targ == 1 and PNL_ACT or
+			list_has_curr and menu_add_extr and menu_idx_targ == 1 and pnl_extr or
+			not list_has_curr and not menu_add_extr and menu_idx_targ == 1 and PNL_ACT or
 			--[[ menu items do NOT includes persistent (stored) panel,
 			and choosen any not first item,
 			which supposed to be from the list:]]
-			(not list_has_curr or menu_has_extr) and #Panels > 0 and menu_idx_targ - 1 or
+			(not list_has_curr or menu_add_extr) and #Panels > 0 and menu_idx_targ - 1 or
 			--[[no saved panels in the list: ]]
 			PNL_ACT
 		if	menu_item.action
