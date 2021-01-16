@@ -409,15 +409,18 @@ local function fnc_menu_item_prep(pnl, new_hot_key)
 	Dir.Name = Dir.Name or ""
 	local file = Dir.File:match("[^\\]+$")
 	local Name = Dir.Name:match(".+" or "[Root]")
-	local path, Type
+	local path, Type, is_dir, dir_path, dir_name
 	if	pnl.isPlugin
 	then
 		Type = pnl.Prefix:match("^[^:]*")
 		Name = (file and file or pnl.Format)..":"..Name or Name
 		if Dir.File ~= "" and not notRealHostFile[Dir.PluginId] then path = Dir.File end
-	else
+	else	is_dir = true
 		Type = "Panel"
 		path = Dir.Name
+		dir_name = string.match(path, "([^\\^/]+)$")
+		dir_path = string.sub(path, 1, -string.len(dir_name) - 1)
+		Name = dir_name.." "..dir_path
 	end
 	Type = Type..(" "):rep(TypeW - Type:len())
 	local notfound = path and not win.GetFileAttr(path)
@@ -605,10 +608,10 @@ local function showMultiPanel(option)
 			(not list_has_curr or menu_has_extr) and #Panels > 0 and menu_idx_targ - 1 or
 			--[[no saved panels in the list: ]]
 			PNL_ACT
-		menu_break = 
+		menu_break =
 			menu_item.action and
 			menu_item.action(list_idx_targ, menu_items[menu_idx_curr])
-	until	menu_break or menu_item.breaking 
+	until	menu_break or menu_item.breaking
 	closeOnRelease = false
 	return menu_idx_targ
 end
