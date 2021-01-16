@@ -596,8 +596,6 @@ local menu_low = "F3:Clone, F4:Close, Release:Switch, Ctrl-Enter:..on passive"
 local function _align(pos) return pos > #Items and 1 or pos < 1 and #Items or pos end --]]
 
 local function showMultiPanel(option)
-	saveSettings()
-	loadSettings()
 	local	menu_break, menu_item, menu_items,
 		menu_idx_curr, menu_idx_targ,
 		list_idx_curr, menu_has_extr,
