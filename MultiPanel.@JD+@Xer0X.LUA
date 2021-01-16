@@ -251,6 +251,7 @@ function stack:Clone(idx)
 	for k, v in pairs(pnl) do copy[k] = v end
 	copy.HK = self:_makeHK()
 	table.insert(self, idx, copy)
+	return idx
 end
 
 function stack:Pop(idx, p)
@@ -525,7 +526,7 @@ local menu_brkys = expandBreakKeys {
 		breaking = true
 	},
 	{	BreakKey = "C+F3 F3",
-		action = function(pos) Panels:Clone(pos) end
+		action = function(pos) return nil, Panels:Clone(pos) end
 	},
 	{	BreakKey = "C+F4 F4",
 		action = function(pos) table.remove(Panels, pos) end
@@ -566,8 +567,9 @@ local function _align(pos) return pos > #Items and 1 or pos < 1 and #Items or po
 local function showMultiPanel(option)
 	local	menu_break, menu_item, menu_items,
 		menu_idx_curr, menu_idx_targ,
-		list_idx_curr, list_idx_targ,
-		list_has_curr, menu_has_extr
+		list_idx_curr, menu_has_extr,
+		list_idx_targ, list_has_curr,
+		list_idx_goto
 	--[[! todo: check it
 	if not (menu_item.grayed or option) then menu_pos = _align(2) end --]]
 	if not (option == "doNotCloseOnRelease" or ModState(anyCtrl) == 0)
@@ -575,10 +577,9 @@ local function showMultiPanel(option)
 	end
 	repeat
 		menu_items, list_has_curr, menu_idx_curr, menu_has_extr = fnc_menu_prep()
-		if	pnl_prev
-		then	menu_idx_curr = menu_idx_curr + 1 - 1
-		end
 		local adj_pos =
+			list_idx_goto and (menu_has_extr or not list_has_curr) and list_idx_dest + 1 or
+			list_idx_goto and list_idx_goto or
 			menu_has_extr and (
 				not pnl_prev and 1 or (
 					pnl_prev.Directory.Name == pnl_extr.Directory.Name and 1 or
@@ -595,7 +596,8 @@ local function showMultiPanel(option)
 		then	-- Enter:
 			menu_item = menu_brkys[1]
 		end
-		list_idx_targ =
+		list_idx_targ = --[[ SORRY, COMMENTS BELOW IS NOT EXACTLY CORRECT,
+				RIGTH NOW I HAVE NO TIME TO FIX IT :( )]]
 			--[[ menu items includes persistent (stored) panel,
 			either there is "extra" (last-visited-not-in-list) panel,
 			so the index is the same:]]
@@ -611,9 +613,9 @@ local function showMultiPanel(option)
 			(not list_has_curr or menu_has_extr) and #Panels > 0 and menu_idx_targ - 1 or
 			--[[no saved panels in the list: ]]
 			PNL_ACT
-		menu_break =
-			menu_item.action and
-			menu_item.action(list_idx_targ, menu_items[menu_idx_curr])
+		if	menu_item.action
+		then	menu_break, list_idx_goto = menu_item.action(list_idx_targ, menu_items[menu_idx_curr])
+		end
 	until	menu_break or menu_item.breaking
 	closeOnRelease = false
 	return menu_idx_targ
