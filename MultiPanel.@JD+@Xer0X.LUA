@@ -423,7 +423,7 @@ local function fnc_menu_item_prep(pnl, new_hot_key)
 		path = Dir.Name
 		dir_name = string.match(path, "([^\\^/]+)$")
 		dir_path = dir_name and string.sub(path, 1, -string.len(dir_name) - 1) or path
-		Name = dir_name.." "..dir_path
+		Name = dir_name and dir_name.." "..dir_path or dir_path
 	end
 	Type = Type..(" "):rep(TypeW - Type:len())
 	local notfound = path and not win.GetFileAttr(path)
