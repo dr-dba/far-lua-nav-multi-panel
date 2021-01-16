@@ -1,12 +1,12 @@
---[[
+--[[!
 if true then return end --]]
 
---[[
+--[[!
 https://forum.farmanager.com/viewtopic.php?f=15&t=8759
 https://gist.github.com/johnd0e/3a8637378eb3415ea28b82f51cbf9f8a
 ]]
 
-local Info = Info or package.loaded.regscript or function(...) return ... end -- luacheck: ignore 113/Info
+local Info = Info or package.loaded.regscript or function(...) return ... end --! luacheck: ignore 113/Info
 local nfo = Info {
 	_filename or ...,
 	name = "MultiPanel",
@@ -17,15 +17,18 @@ local nfo = Info {
 	author_mod = "Xer0X",
 	url = "http://forum.farmanager.com/viewtopic.php?f=15&t=8759",
 	id = "75950345-29C3-49DB-804D-8AA96345C1B2",
-	minfarversion = { 3, 0, 0, 4151, 0 }, -- local profile
+	minfarversion = { 3, 0, 0, 4151, 0 }, --! local profile
 	help = function(nfo)
 		far.Message("\nSee Bottom title for hotkeys\n\n[...]\n", nfo.name.." v"..nfo.version, nil, "kl")
 	end,
 --	disabled    = false;
 	options = {
-		macroKey = "`", -- Ctrl~ / CtrlShift~
+		macroKey = "`", --! Ctrl~ / CtrlShift~
 		popupDelayLong = 1000,
-		popupDelay = 300
+		popupDelay = 300,
+		sett_save_in =
+		--!	"far"	--! FAR settings storage
+			"file"	--! file storage in INI as serialized Lua table
 	}
 }
 if not nfo or nfo.disabled then return end
@@ -38,9 +41,9 @@ local DefPanel = {
 		Param = "",
 		PluginId = win.Uuid("00000000-0000-0000-0000-000000000000")
 	},
-	Info = { -- http://api.farmanager.com/ru/defs/sortmetods.html
+	Info = { --! http://api.farmanager.com/ru/defs/sortmetods.html
 		SortMode = F.SM_EXT,
-		Flags = F.PFLAGS_NONE, -- F.PFLAGS_REVERSESORTORDER,
+		Flags = F.PFLAGS_NONE, --! F.PFLAGS_REVERSESORTORDER,
 		ViewMode = 4
 	}
 }
@@ -53,6 +56,13 @@ local openFromMenu = {
 	[win.Uuid("B77C964B-E31E-4D4C-8FE5-D6B0C6853E7C")] = "Temporary panel"
 }
 local pnl_extr, pnl_prev
+local dmp_srlz
+pcall(function() dmp_srlz = require("dmp-tbl-alt-x") end)
+local fnc_file_whoami		= Xer0X.fnc_file_whoami
+local is_mdl, tbl_args, own_file_path, own_file_fold, own_file_name, own_file_extn
+	= fnc_file_whoami({ ... })
+local ini_file_path = own_file_path..".ini"
+
 -------------------------------------------------------------
 --- some general definitions
 
@@ -337,13 +347,34 @@ local Panels
 local _KEY =	nfo.author:upper()
 local _NAME =	nfo.name
 
-local function delSettings() mf.mdelete(_KEY, _NAME, "local") end
+local function delSettings()
+	mf.mdelete(_KEY, _NAME, "local")
+end
 
-local function saveSettings() mf.msave(_KEY, _NAME, { Panels = Panels }, "local") end
+local function saveSettings()
+	mf.msave(_KEY, _NAME, { Panels = Panels }, "local")
+	if	dmp_srlz
+	then	local res_val, file_hnd = dmp_srlz.fnc_file_save(Panels, { file_path = ini_file_path, file_init = true, file_close = true })
+	end
+end
 
 local function loadSettings()
-	local S = mf.mload(_KEY, _NAME, "local") or { }
-	Panels = S.Panels or Panels or { currentHK = 0 }
+	local	file_obj, file_err
+	if	O.sett_save_in == "file"
+	then	file_obj, file_err = loadfile(ini_file_path)
+		if	file_obj
+		then	Panels = file_obj()
+		else
+		--!	far.Message(file_err, "Load settings error")
+		end
+	end
+	if	O.sett_save_in == "far"
+	or not	file_obj
+	or not	Panels
+	then	local S = mf.mload(_KEY, _NAME, "local") or { }
+	        Panels = S.Panels
+	end
+	Panels = Panels or { currentHK = 0 }
 	setmetatable(Panels, mtPanelsStack)
 end
 
@@ -565,6 +596,8 @@ local menu_low = "F3:Clone, F4:Close, Release:Switch, Ctrl-Enter:..on passive"
 local function _align(pos) return pos > #Items and 1 or pos < 1 and #Items or pos end --]]
 
 local function showMultiPanel(option)
+	saveSettings()
+	loadSettings()
 	local	menu_break, menu_item, menu_items,
 		menu_idx_curr, menu_idx_targ,
 		list_idx_curr, menu_has_extr,
