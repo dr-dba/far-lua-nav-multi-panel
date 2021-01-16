@@ -27,8 +27,8 @@ local nfo = Info {
 		popupDelayLong = 1000,
 		popupDelay = 300,
 		sett_save_in =
-		--!	"far"	--! FAR settings storage
-			"file"	--! file storage in INI as serialized Lua table
+			"far"	--! FAR settings storage
+		--!	"file"	--! file storage in INI as serialized Lua table
 	}
 }
 if not nfo or nfo.disabled then return end
