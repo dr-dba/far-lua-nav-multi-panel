@@ -27,8 +27,8 @@ local nfo = Info {
 		popupDelayLong = 1000,
 		popupDelay = 300,
 		sett_save_in =
-			"far"	--! FAR settings storage
-		--!	"file"	--! file storage in INI as serialized Lua table
+		--	"far"	--! FAR settings storage
+			"file"	--! file storage in DAT as serialized Lua table
 	}
 }
 if not nfo or nfo.disabled then return end
@@ -58,10 +58,12 @@ local openFromMenu = {
 local pnl_extr, pnl_prev
 local dmp_srlz
 pcall(function() dmp_srlz = require("dmp-tbl-alt-x") end)
-local fnc_file_whoami		= Xer0X.fnc_file_whoami
-local is_mdl, tbl_args, own_file_path, own_file_fold, own_file_name, own_file_extn
-	= fnc_file_whoami({ ... })
-local ini_file_path = own_file_path..".ini"
+local fnc_file_whoami, dat_file_path 
+if Xer0X then
+	fnc_file_whoami = Xer0X.fnc_file_whoami
+	local is_mdl, tbl_args, own_file_path, own_file_fold, own_file_name, own_file_extn = fnc_file_whoami({ ... })
+	dat_file_path = own_file_path..".dat"
+end
 
 -------------------------------------------------------------
 --- some general definitions
@@ -358,15 +360,16 @@ end
 
 local function saveSettings()
 	mf.msave(_KEY, _NAME, { Panels = Panels }, "local")
-	if	dmp_srlz
-	then	local res_val, file_hnd = dmp_srlz.fnc_file_save(Panels, { file_path = ini_file_path, file_init = true, file_close = true })
+	if dmp_srlz and dat_file_path
+	then	local res_val, file_hnd = dmp_srlz.fnc_file_save(Panels, { file_path = dat_file_path, file_init = true, file_close = true })
 	end
 end
 
 local function loadSettings()
 	local	file_obj, file_err
 	if	O.sett_save_in == "file"
-	then	file_obj, file_err = loadfile(ini_file_path)
+	and	dat_file_path
+	then	file_obj, file_err = loadfile(dat_file_path)
 		if	file_obj
 		then	Panels = file_obj()
 		else
