@@ -59,7 +59,7 @@ local pnl_extr, pnl_prev
 local dmp_srlz
 pcall(function() dmp_srlz = require("dmp-tbl-alt-x") end)
 local fnc_file_whoami, dat_file_path 
-if Xer0X then
+if Xer0X and Xer0X.fnc_file_whoami then
 	fnc_file_whoami = Xer0X.fnc_file_whoami
 	local is_mdl, tbl_args, own_file_path, own_file_fold, own_file_name, own_file_extn = fnc_file_whoami({ ... })
 	dat_file_path = own_file_path..".dat"
