@@ -2,6 +2,8 @@
 if true then return end --]]
 
 --[[!
+https://github.com/dr-dba/far-lua-nav-multi-panel/
+based on @JD:
 https://forum.farmanager.com/viewtopic.php?f=15&t=8759
 https://gist.github.com/johnd0e/3a8637378eb3415ea28b82f51cbf9f8a
 ]]
